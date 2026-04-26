@@ -62,7 +62,7 @@ class MetaClawConfig:
     # ------------------------------------------------------------------ #
     # Memory                                                              #
     # ------------------------------------------------------------------ #
-    memory_enabled: bool = False
+    memory_enabled: bool = True
     memory_dir: str = "memory_data/store"
     memory_store_path: str = "memory_data/store/memory.db"
     memory_scope: str = "default"
@@ -95,7 +95,7 @@ class MetaClawConfig:
     # ------------------------------------------------------------------ #
     # Context window                                                       #
     # ------------------------------------------------------------------ #
-    max_context_tokens: int = 20000            # hard cap on prompt token count; must match
+    max_context_tokens: int = 80000            # hard cap on prompt token count; must match
                                               # Tinker's max_seq_len minus headroom for response
 
     # ------------------------------------------------------------------ #
@@ -157,6 +157,9 @@ class MetaClawConfig:
     llm_api_base: str = ""      # e.g. https://api.moonshot.cn/v1
     llm_api_key: str = ""       # bearer token for upstream LLM
     llm_model_id: str = ""      # model name to forward to
+    # Generation parameters (used as defaults when not provided in request)
+    llm_temperature: float = 0.5
+    llm_top_p: float = 0.5
 
     # ------------------------------------------------------------------ #
     # LLM for skill evolution                                             #

@@ -22,6 +22,8 @@ _DEFAULTS: dict = {
         "model_id": "",
         "api_base": "",
         "api_key": "",
+        "temperature": 0.5,
+        "top_p": 0.5,
     },
     "proxy": {"port": 30000, "host": "0.0.0.0"},
     "skills": {
@@ -49,7 +51,7 @@ _DEFAULTS: dict = {
         "manual_train_trigger": False,
     },
     "memory": {
-        "enabled": False,
+        "enabled": True,
         "dir": str(Path.home() / ".metaclaw" / "memory"),
         "scope": "default",
         "retrieval_mode": "keyword",
@@ -245,6 +247,8 @@ class ConfigStore:
             llm_api_base=llm.get("api_base", ""),
             llm_api_key=llm_api_key_resolved,
             llm_model_id=llm.get("model_id", ""),
+            llm_temperature=float(llm.get("temperature", 0.5)),
+            llm_top_p=float(llm.get("top_p", 0.5)),
             # Proxy
             proxy_port=proxy.get("port", 30000),
             proxy_host=proxy.get("host", "0.0.0.0"),

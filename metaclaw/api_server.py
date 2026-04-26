@@ -584,14 +584,28 @@ class MetaClawAPIServer:
     # ------------------------------------------------------------------ #
 
     def _load_tokenizer(self):
+        """Load tokenizer only if needed for RL mode.
+
+        In skills_only mode, tokenizer is not required since we don't need
+        token IDs for training. This allows using any LLM provider without
+        HuggingFace dependency.
+        """
+        # Skip tokenizer in skills_only mode - not needed
+        if self.config.mode == "skills_only":
+            logger.info("[OpenClaw] skills_only mode - tokenizer not required")
+            return None
+
+        # RL modes require tokenizer for training data tokenization
         try:
             from transformers import AutoTokenizer
-            return AutoTokenizer.from_pretrained(
+            tokenizer = AutoTokenizer.from_pretrained(
                 self.config.model_name, trust_remote_code=True
             )
+            logger.info("[OpenClaw] loaded tokenizer: %s", self.config.model_name)
+            return tokenizer
         except Exception as e:
-            logger.warning("[OpenClaw] could not load tokenizer: %s", e)
-            return None
+            logger.error("[OpenClaw] failed to load tokenizer '%s': %s", self.config.model_name, e)
+            raise
 
     # ------------------------------------------------------------------ #
     # FastAPI app                                                          #
@@ -1221,9 +1235,11 @@ class MetaClawAPIServer:
             )
 
         # Truncate to fit within max_context_tokens (keep system + most-recent messages)
-        max_prompt = self.config.max_context_tokens - int(body.get("max_tokens") or 2048)
-        if max_prompt > 0:
-            messages = self._truncate_messages(messages, tools, max_prompt)
+        # Only needed in RL mode where tokenizer is available
+        if self._tokenizer is not None:
+            max_prompt = self.config.max_context_tokens - int(body.get("max_tokens") or 2048)
+            if max_prompt > 0:
+                messages = self._truncate_messages(messages, tools, max_prompt)
 
         forward_body = {k: v for k, v in body.items() if k not in _NON_STANDARD_BODY_KEYS}
         forward_body["stream"] = False
@@ -1235,6 +1251,11 @@ class MetaClawAPIServer:
         forward_body["messages"] = _ensure_reasoning_content(messages)
 
         if self.config.mode == "skills_only":
+            # Apply config defaults for generation parameters if not provided in request
+            if "temperature" not in forward_body:
+                forward_body["temperature"] = self.config.llm_temperature
+            if "top_p" not in forward_body:
+                forward_body["top_p"] = self.config.llm_top_p
             output = await self._forward_to_llm(forward_body, session_id=session_id)
         else:
             output = await self._forward_to_tinker(forward_body)
@@ -1464,9 +1485,10 @@ class MetaClawAPIServer:
             messages = body.get("messages", [])
             norm_msgs = _normalize_messages_for_template(messages)
             tools = body.get("tools")
-            temperature = float(body.get("temperature", 0.7))
+            temperature = float(body.get("temperature", self.config.llm_temperature))
             max_tokens = int(body.get("max_tokens") or 2048)
             stop = body.get("stop")
+            top_p = float(body.get("top_p", self.config.llm_top_p))
 
             logger.info("[OpenClaw] _forward_to_tinker msgs=%d max_tokens=%d", len(norm_msgs), max_tokens)
 
@@ -1489,7 +1511,7 @@ class MetaClawAPIServer:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 top_k=50,
-                top_p=0.95,
+                top_p=top_p,
             )
             if stop is not None:
                 sp_kwargs["stop"] = stop
@@ -2106,10 +2128,16 @@ class MetaClawAPIServer:
     ) -> list[dict]:
         """
         Drop oldest non-system messages until the tokenized prompt fits within
-        max_prompt_tokens.  The system message (if any) is always kept.
+        max_prompt_tokens. The system message (if any) is always kept.
         At least one user message is always kept even if it alone exceeds the limit.
+
+        In skills_only mode (tokenizer is None), this returns messages unchanged
+        since truncation is not critical - the upstream LLM will handle its own
+        context window limits.
         """
         if self._tokenizer is None:
+            # No tokenizer available (skills_only mode) - skip truncation
+            # The upstream LLM provider will handle context window limits
             return messages
 
         def _prompt_len(msgs):

@@ -7,3 +7,6 @@ memory_data/skills
 # Node
 node_modules/
 .DS_Store
+.claude/
+.venv/
+aiming_metaclaw.egg-info/

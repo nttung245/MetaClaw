@@ -92,9 +92,11 @@ class SkillEvolver:
             if base_url != "https://api.openai.com/v1":
                 logger.info("[SkillEvolver] Using custom API base URL: %s", base_url)
             from openai import OpenAI
+            # Use custom User-Agent to avoid Cloudflare blocking
             self._openai_client = OpenAI(
                 api_key=api_key,
                 base_url=base_url,
+                default_headers={"User-Agent": "MetaClaw/1.0"},
             )
             model_from_env = os.environ.get("SKILL_EVOLVER_MODEL", "")
             if not model_from_env and (not azure_deployment or azure_deployment == "o3"):
@@ -400,7 +402,7 @@ class SkillEvolver:
     def _append_history(self, record: dict) -> None:
         try:
             os.makedirs(os.path.dirname(os.path.abspath(self.history_path)), exist_ok=True)
-            with open(self.history_path, "a") as f:
+            with open(self.history_path, "a", encoding='utf-8') as f:
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
         except Exception as e:
             logger.warning("[SkillEvolver] could not write history: %s", e)

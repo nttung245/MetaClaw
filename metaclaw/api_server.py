@@ -547,6 +547,7 @@ class MetaClawAPIServer:
             self._teacher_client = OpenAI(
                 base_url=config.teacher_url,
                 api_key=config.teacher_api_key or "unused",
+                default_headers={"User-Agent": "MetaClaw/1.0"},
             )
             logger.info("[OpenClaw] OPD teacher client ready: url=%s model=%s",
                         config.teacher_url, config.teacher_model)

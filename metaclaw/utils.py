@@ -97,6 +97,8 @@ def _run_llm_openai(messages):
     model_id = prm_model or os.environ.get("PRM_MODEL", "gpt-5.2")
     client_kwargs: dict[str, Any] = {"api_key": api_key}
     client_kwargs["base_url"] = base_url
+    # Use custom User-Agent to avoid Cloudflare blocking
+    client_kwargs["default_headers"] = {"User-Agent": "MetaClaw/1.0"}
     client = OpenAI(**client_kwargs)
 
     rewrite_messages = [{"role": "system", "content": _COMPRESSION_INSTRUCTION}, *messages]

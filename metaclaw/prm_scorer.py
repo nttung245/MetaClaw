@@ -174,6 +174,8 @@ class PRMScorer:
             base_url = prm_url.rstrip("/")
             client_kwargs: dict[str, Any] = {"api_key": api_key}
             client_kwargs["base_url"] = base_url
+            # Use custom User-Agent to avoid Cloudflare blocking
+            client_kwargs["default_headers"] = {"User-Agent": "MetaClaw/1.0"}
             self._client = OpenAI(**client_kwargs)
 
         self.prm_model = prm_model
